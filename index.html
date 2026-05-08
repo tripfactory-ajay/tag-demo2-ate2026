@@ -1,1 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Answers – Guided Tours Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal: #1a5c5a;
+    --teal-dark: #0f3c3a;
+    --teal-light: #2d7d7a;
+    --gold: #e8a830;
+    --gold-light: #fef3c7;
+    --cream: #f8f5f0;
+    --off-white: #f4f1ec;
+    --white: #ffffff;
+    --gray-100: #f4f4f4;
+    --gray-200: #e8e8e8;
+    --gray-300: #d1d1d1;
+    --gray-400: #9a9a9a;
+    --gray-600: #555;
+    --gray-800: #222;
+    --green: #16a34a;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    --shadow-lg: 0 12px 48px rgba(0,0,0,0.16);
+  }
 
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--off-white); color: var(--gray-800); min-height: 100vh; }
+
+  /* ── OVERLAY & POPUP ── */
+  #overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(10,30,28,0.50);
+    z-index: 900; backdrop-filter: blur(2px);
+  }
+  #overlay.active { display: block; }
+
+  #popup {
+    display: none; position: fixed; z-index: 1000;
+    background: var(--white); border-radius: 16px;
+    box-shadow: var(--shadow-lg); width: 390px;
+    padding: 28px 28px 22px;
+    border-top: 5px solid var(--teal);
+    animation: popIn .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  #popup.active { display: block; }
+
+  @keyframes popIn {
+    from { opacity:0; transform: scale(0.88) translateY(12px); }
+    to   { opacity:1; transform: scale(1) translateY(0); }
+  }
+
+  .popup-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--teal); color: #fff;
+    font-size: 11px; font-weight: 600; letter-spacing: .6px;
+    padding: 4px 10px; border-radius: 20px;
+    margin-bottom: 12px; text-transform: uppercase;
+  }
+  .popup-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 21px; font-weight: 700; color: var(--teal-dark);
+    margin-bottom: 10px; line-height: 1.3;
+  }
+  .popup-body {
+    font-size: 13.5px; line-height: 1.65; color: var(--gray-600); margin-bottom: 16px;
+  }
+  .popup-body strong { color: var(--gray-800); }
+  .popup-tip {
+    background: #f0f9f8; border-left: 3px solid var(--teal-light);
+    border-radius: 6px; padding: 10px 14px;
+    font-size: 13px; color: var(--teal-dark); margin-bottom: 16px;
+  }
+  .popup-tip::before { content: "💡 "; }
+  .popup-nav { display: flex; align-items: center; justify-content: space-between; }
+  .popup-progress { font-size: 12px; color: var(--gray-400); font-weight: 500; }
+  .progress-bar { height: 3px; background: var(--gray-200); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--teal); border-radius: 3px; transition: width .4s ease; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-ghost { background: transparent; color: var(--gray-400); }
+  .btn-ghost:hover { color: var(--gray-800); }
+  .btn-close { position: absolute; top: 14px; right: 14px; background: var(--gray-100); border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px; color: var(--gray-600); display: flex; align-items:center; justify-content:center; }
+  .btn-close:hover { background: var(--gray-200); }
+
+  .highlight-target {
+    position: relative; z-index: 950;
+    box-shadow: 0 0 0 3px var(--gold), 0 0 0 7px rgba(232,168,48,.2) !important;
+    border-radius: 10px; transition: box-shadow .3s;
+  }
+
+  /* ── STEP BAR ── */
+  #step-bar {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 800; background: var(--teal-dark);
+    border-radius: 40px; padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-lg); max-width: 95vw;
+  }
+  .step-dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.25);
+    background: transparent; color: rgba(255,255,255,.5);
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s;
+    display: flex; align-items:center; justify-content:center;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .step-dot:hover { border-color: rgba(255,255,255,.7); color: #fff; }
+  .step-dot.active { background: var(--gold); border-color: var(--gold); color: var(--teal-dark); }
+  .step-dot.done { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.4); color: rgba(255,255,255,.8); }
+
+  /* ── SCREENS ── */
+  section { min-height: 100vh; display: none; }
+  section.active { display: block; }
+
+  /* ── NAV ── */
+  .ta-nav {
+    background: var(--teal-dark); padding: 0 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 58px; position: sticky; top: 0; z-index: 100;
+  }
+  .ta-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: #fff; font-weight: 700; }
+  .ta-logo sub { font-size: 8px; color: rgba(255,255,255,.4); font-family: 'DM Sans', sans-serif; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; display: block; }
+  .ta-nav-links { display: flex; align-items: center; gap: 20px; }
+  .ta-nav-link { color: rgba(255,255,255,.75); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; }
+  .ta-nav-link:hover { color: #fff; }
+  .ta-nav-right { display: flex; align-items: center; gap: 14px; }
+  .ta-nav-credit { background: rgba(255,255,255,.12); border-radius: 20px; padding: 5px 14px; color: #fff; font-size: 13px; font-weight: 600; }
+  .ta-avatar { width: 34px; height: 34px; background: var(--gold); border-radius: 50%; display:flex; align-items:center; justify-content:center; color: var(--teal-dark); font-weight: 700; font-size: 13px; }
+
+  /* ════════════════ SCREEN 1: TOUR SEARCH ════════════════ */
+  .search-bar {
+    background: #fff; border-bottom: 1px solid var(--gray-200);
+    padding: 16px 28px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: end;
+  }
+  .search-field { display: flex; flex-direction: column; gap: 5px; }
+  .search-label { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; }
+  .search-input {
+    border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px 14px;
+    font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800);
+    background: #fff;
+  }
+  .search-select { appearance: none; background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 10px center/18px; border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px 32px 10px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800); cursor: pointer; }
+  .btn-search { background: var(--gray-800); color: #fff; border: none; border-radius: 8px; padding: 11px 28px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+
+  .search-body { display: grid; grid-template-columns: 280px 1fr; gap: 0; min-height: calc(100vh - 130px); }
+
+  /* Sidebar filters */
+  .filter-sidebar { background: #fff; border-right: 1px solid var(--gray-200); padding: 20px; }
+  .filter-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+  .filter-section { margin-bottom: 24px; }
+  .filter-section-header { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+  .filter-month-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .filter-month-btn { border: 1px solid var(--gray-200); border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 500; cursor: pointer; background: #fff; font-family: 'DM Sans', sans-serif; text-align: center; transition: all .15s; }
+  .filter-month-btn:hover { border-color: var(--teal); color: var(--teal); }
+  .filter-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-600); margin-bottom: 8px; cursor: pointer; }
+  .filter-check input { accent-color: var(--teal); }
+  .filter-radio { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-600); margin-bottom: 8px; cursor: pointer; }
+  .filter-radio input { accent-color: var(--teal); }
+
+  /* Results */
+  .results-panel { padding: 20px 24px; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .results-count { font-size: 14px; color: var(--gray-600); }
+  .results-count strong { color: var(--gray-800); }
+  .sort-select { border: 1px solid var(--gray-200); border-radius: 8px; padding: 7px 30px 7px 12px; font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif; appearance: none; background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 8px center/16px; cursor: pointer; }
+
+  .tour-card {
+    background: #fff; border-radius: 14px; box-shadow: var(--shadow);
+    overflow: hidden; display: grid; grid-template-columns: 280px 1fr;
+    margin-bottom: 16px; transition: box-shadow .2s;
+  }
+  .tour-card:hover { box-shadow: var(--shadow-lg); }
+  .tour-card-img {
+    position: relative;
+    background: linear-gradient(135deg, #8bbaba 0%, #2d6b6b 100%);
+    min-height: 240px;
+  }
+  .tour-card-img-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.3) 100%);
+  }
+  .tour-nights-badge {
+    position: absolute; top: 12px; left: 12px;
+    background: rgba(0,0,0,.6); color: #fff;
+    font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 20px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tour-nights-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+  .tour-card-info { padding: 20px 22px; display: flex; flex-direction: column; justify-content: space-between; }
+  .tour-card-top { }
+  .tour-credits-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--gold-light); color: #92400e; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; margin-bottom: 10px; }
+  .tour-type-badge { display: inline-flex; align-items: center; background: #fce7f3; color: #9d174d; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-left: 6px; }
+  .tour-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
+  .tour-route { font-size: 12px; color: var(--gray-400); margin-bottom: 12px; line-height: 1.5; }
+  .tour-description { font-size: 13px; color: var(--gray-600); line-height: 1.6; margin-bottom: 4px; }
+  .tour-show-more { color: var(--blue); font-size: 13px; cursor: pointer; font-weight: 500; }
+  .tour-card-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--gray-100); }
+  .tour-price-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; }
+  .tour-price { font-size: 26px; font-weight: 700; color: var(--gray-800); }
+  .tour-price-sub { font-size: 12px; color: var(--gray-400); }
+  .tour-not-incl { display: inline-flex; align-items: center; gap: 4px; background: #fee2e2; color: var(--red); font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+  .btn-view-details { background: var(--gray-800); color: #fff; border: none; border-radius: 8px; padding: 10px 22px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  /* ════════════════ SCREEN 2: TOUR DETAIL PAGE ════════════════ */
+  .tour-detail-layout { display: grid; grid-template-columns: 1fr 340px; gap: 0; align-items: start; padding: 28px; max-width: 1100px; margin: 0 auto; }
+  .tour-detail-main { padding-right: 28px; }
+
+  .tour-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .tour-stat { background: #fff; border-radius: 10px; padding: 16px; box-shadow: var(--shadow); text-align: center; }
+  .tour-stat-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .tour-stat-value { font-size: 20px; font-weight: 700; }
+
+  .tour-section { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px; }
+  .tour-section h2 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+  .highlights-list { list-style: none; padding: 0; }
+  .highlights-list li { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 14px; color: var(--gray-600); border-bottom: 1px solid var(--gray-100); }
+  .highlights-list li::before { content: '☆'; color: var(--gold); font-size: 14px; }
+
+  .day-accordion { border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+  .day-accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; cursor: pointer; background: #fff; }
+  .day-accordion-badge { background: var(--gray-100); color: var(--gray-600); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin-right: 10px; }
+  .day-accordion-title { font-size: 14px; font-weight: 700; }
+  .day-accordion-body { padding: 14px 18px; background: #fafafa; border-top: 1px solid var(--gray-200); }
+  .day-service { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-600); padding: 5px 0; }
+  .day-service-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0; }
+
+  /* Booking sidebar */
+  .booking-sidebar { position: sticky; top: 80px; }
+  .booking-card { background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; }
+  .booking-card-price { padding: 20px 22px; border-bottom: 1px solid var(--gray-100); }
+  .booking-price-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .booking-price { font-size: 30px; font-weight: 700; margin-bottom: 2px; }
+  .booking-price-sub { font-size: 12px; color: var(--gray-400); display: flex; align-items: center; gap: 8px; }
+  .not-incl-tag { background: #fee2e2; color: var(--red); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+
+  .booking-card-form { padding: 18px 22px; }
+  .booking-form-label { font-size: 12px; font-weight: 700; color: var(--gray-600); margin-bottom: 6px; }
+  .booking-form-input { border: 1px solid var(--gray-200); border-radius: 8px; padding: 9px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800); width: 100%; margin-bottom: 12px; }
+  .booking-month-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .month-tag { border: 1px solid var(--gray-200); border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 500; cursor: pointer; background: #fff; font-family: 'DM Sans', sans-serif; transition: all .15s; }
+  .month-tag:hover { border-color: var(--teal); color: var(--teal); }
+  .month-tag.active { background: var(--teal-dark); color: #fff; border-color: var(--teal-dark); }
+
+  .departure-option { display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; }
+  .departure-option.selected { border-color: var(--teal); background: #f0f9f8; }
+  .departure-left { display: flex; align-items: center; gap: 10px; }
+  .departure-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--gray-300); display: flex; align-items:center; justify-content:center; flex-shrink: 0; }
+  .departure-option.selected .departure-radio { border-color: var(--teal); }
+  .departure-radio-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); display: none; }
+  .departure-option.selected .departure-radio-dot { display: block; }
+  .departure-date { font-size: 14px; font-weight: 700; }
+  .departure-seats { font-size: 12px; color: var(--red); font-weight: 500; }
+  .departure-price { text-align: right; }
+  .departure-price-amount { font-size: 15px; font-weight: 700; }
+  .departure-price-label { font-size: 11px; color: var(--gray-400); }
+
+  .booking-rooms-row { margin-bottom: 12px; }
+  .credits-badge-lg { display: flex; align-items: center; gap: 6px; background: var(--gold-light); color: #92400e; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; }
+  .btn-check-avail { background: var(--gray-800); color: #fff; border: none; border-radius: 10px; padding: 14px; width: 100%; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: space-between; }
+
+  /* ════════════════ SCREEN 3: PRICE CONFIRMED ════════════════ */
+  .price-confirmed-card { background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 24px; }
+  .price-confirmed-title { font-family: 'Cormorant Garamond', serif; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--gray-400); margin-bottom: 4px; }
+  .price-confirmed-total { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+  .price-confirmed-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 16px; }
+  .price-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid var(--gray-100); }
+  .price-row:last-child { border-bottom: none; }
+  .btn-book-now { background: var(--gray-800); color: #fff; width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-bottom: 10px; transition: background .15s; }
+  .btn-book-now:hover { background: var(--teal-dark); }
+  .btn-save-proposal { background: var(--blue); color: #fff; width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  /* ════════════════ SCREEN 4: TRAVEL GUIDELINES ════════════════ */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 14px; width: 560px; max-height: 80vh; overflow-y: auto; padding: 28px; position: relative; box-shadow: var(--shadow-lg); }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .modal-country-tab { display: inline-block; background: var(--teal-dark); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
+  .modal-section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .modal-list { padding-left: 20px; margin-bottom: 16px; }
+  .modal-list li { font-size: 13px; color: var(--gray-600); line-height: 1.7; margin-bottom: 8px; }
+  .btn-processing { background: var(--gray-800); color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ════════════════ SCREEN 5: TRAVELER DETAILS ════════════════ */
+  .booking-flow-body { display: grid; grid-template-columns: 1fr 340px; gap: 24px; padding: 28px; max-width: 1100px; margin: 0 auto; }
+  .form-section { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 24px; margin-bottom: 16px; }
+  .form-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .form-section p { font-size: 13px; color: var(--gray-400); margin-bottom: 18px; }
+  .room-header { background: var(--gray-100); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .btn-pick-traveler { background: var(--teal); color: #fff; border: none; border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .form-grid-3 { display: grid; grid-template-columns: 100px 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .form-label { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; display: block; }
+  .form-input { border: 1px solid var(--gray-200); border-radius: 8px; padding: 9px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800); width: 100%; }
+  .form-select { appearance: none; background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") no-repeat right 10px center/18px; border: 1px solid var(--gray-200); border-radius: 8px; padding: 9px 30px 9px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800); width: 100%; cursor: pointer; }
+  .upload-link { color: var(--blue); font-size: 13px; display: flex; align-items: center; gap: 4px; margin-top: 6px; cursor: pointer; }
+  .upload-link::before { content: '⬆'; }
+  .bed-pref { border: 1px solid var(--gray-200); border-radius: 8px; padding: 9px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--gray-800); width: 200px; }
+  .verify-checks { background: var(--gray-100); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+  .verify-check { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--gray-600); margin-bottom: 6px; }
+  .verify-check input { accent-color: var(--teal); margin-top: 2px; }
+
+  /* Special occasion */
+  .occasion-section { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 24px; margin-bottom: 16px; }
+  .occasion-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .occasion-subtitle { font-size: 13px; color: var(--gray-600); margin-bottom: 16px; }
+  .occasion-options { display: flex; gap: 20px; flex-wrap: wrap; }
+  .occasion-radio { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+  .occasion-radio input { accent-color: var(--teal); }
+
+  /* Price summary sidebar */
+  .price-summary-sidebar { position: sticky; top: 80px; }
+  .price-summary-card { background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 22px; margin-bottom: 16px; }
+  .price-net { font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; }
+  .price-gross { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .price-gross-label { font-size: 13px; font-weight: 700; color: var(--gray-600); }
+  .price-gross-sub { font-size: 12px; color: var(--gray-400); }
+  .credits-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--gold-light); color: #92400e; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px; margin-top: 10px; }
+
+  .hotel-preview-card { background: #fff; border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 10px; }
+  .hotel-preview-header { padding: 14px 16px; border-bottom: 1px solid var(--gray-100); }
+  .hotel-preview-name { font-size: 14px; font-weight: 700; }
+  .hotel-preview-stars { color: var(--gold); font-size: 12px; }
+  .hotel-preview-addr { font-size: 12px; color: var(--gray-400); margin-top: 3px; }
+  .hotel-preview-img { width: 100%; height: 130px; object-fit: cover; }
+  .hotel-preview-img.alice { background: linear-gradient(135deg, #c4845a, #a06038); }
+  .hotel-preview-img.cairns { background: linear-gradient(135deg, #4a8fb5, #2a6a90); }
+  .hotel-preview-checkin { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; padding: 12px 16px; background: var(--gray-100); }
+  .checkin-label { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; }
+  .checkin-value { font-size: 13px; font-weight: 700; }
+  .nights-pill { background: #fff; border-radius: 6px; padding: 6px 10px; text-align: center; font-size: 12px; font-weight: 700; box-shadow: var(--shadow); }
+  .show-more-link { color: var(--blue); font-size: 13px; cursor: pointer; text-align: center; padding: 12px; display: block; }
+
+  /* ════════════════ SCREEN 6: PAYMENT ════════════════ */
+  .payment-body { padding: 28px; max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+  .important-info { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 24px; margin-bottom: 16px; }
+  .important-info h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .hotel-name-bold { font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+  .policy-list { padding-left: 18px; }
+  .policy-list li { font-size: 13px; color: var(--gray-600); line-height: 1.6; margin-bottom: 6px; }
+  .pay-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .pay-option { border: 2px solid var(--gray-200); border-radius: 12px; padding: 16px; cursor: pointer; transition: all .15s; display: flex; align-items: flex-start; gap: 10px; }
+  .pay-option.selected { border-color: var(--teal); background: #f0f9f8; }
+  .pay-option-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--gray-300); display: flex; align-items:center; justify-content:center; flex-shrink: 0; margin-top: 2px; }
+  .pay-option.selected .pay-option-radio { border-color: var(--teal); }
+  .pay-option-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); display: none; }
+  .pay-option.selected .pay-option-dot { display: block; }
+  .pay-option-label { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .pay-option-sub { font-size: 12px; color: var(--gray-400); }
+  .payment-total-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 14px; font-weight: 600; border-top: 1px solid var(--gray-200); }
+  .payment-amount-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 18px; font-weight: 700; }
+  .checkbox-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--gray-600); margin-bottom: 12px; line-height: 1.5; }
+  .checkbox-row input { accent-color: var(--teal); margin-top: 2px; flex-shrink: 0; }
+  .action-btns { display: flex; gap: 12px; }
+  .btn-hold { flex: 1; padding: 13px; background: var(--teal-dark); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .btn-pay-now { flex: 1; padding: 13px; background: #1d4ed8; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  /* ════════════════ SCREEN 7: BOOKING CONFIRMED ════════════════ */
+  .confirm-body { padding: 28px; max-width: 860px; margin: 0 auto; }
+  .booking-ref { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 22px; margin-bottom: 16px; }
+  .booking-ref-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 14px; }
+  .booking-ref-label { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .booking-ref-value { font-size: 14px; font-weight: 600; }
+  .payment-confirmed-card { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 22px; margin-bottom: 16px; }
+  .payment-total-display { font-size: 28px; font-weight: 700; }
+  .add-markup { color: var(--blue); font-size: 13px; cursor: pointer; margin-top: 4px; display: inline-block; }
+  .commission-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  .commission-item { background: var(--gray-100); border-radius: 8px; padding: 12px; }
+  .commission-label { font-size: 11px; color: var(--gray-400); margin-bottom: 4px; }
+  .commission-value { font-size: 16px; font-weight: 700; }
+  .credits-earned-box { background: var(--gold-light); border: 1px solid #fcd34d; border-radius: 10px; padding: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .credits-earned-amount { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .booking-status-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; background: var(--gray-100); border-radius: 10px; padding: 14px 16px; }
+  .status-new { background: var(--gray-200); color: var(--gray-600); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+  .btn-pay-green { background: var(--green); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .btn-copy-link { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+  .outstanding-row { text-align: center; padding: 12px 0; font-size: 13px; color: var(--gray-600); background: var(--gray-100); border-radius: 0 0 10px 10px; margin-top: -2px; }
+  .hotel-confirm-card { background: #fff; border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
+  .hotel-confirm-header { padding: 16px 20px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 10px; }
+  .city-badge { background: var(--teal-dark); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .hotel-confirm-img { width: 100%; height: 160px; }
+  .hotel-confirm-img.melbourne { background: linear-gradient(135deg, #3a6b8a, #1e4060); }
+  .hotel-confirm-details { padding: 16px 20px; }
+
+  .divider { height: 1px; background: var(--gray-200); margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<div id="overlay"></div>
+<div id="popup">
+  <button class="btn-close" onclick="closePopup()">✕</button>
+  <div class="popup-badge" id="popup-badge"></div>
+  <div class="popup-title" id="popup-title"></div>
+  <div class="popup-body" id="popup-body"></div>
+  <div class="popup-tip" id="popup-tip"></div>
+  <div class="popup-nav">
+    <button class="btn btn-ghost" id="btn-prev" onclick="prevStep()">← Back</button>
+    <span class="popup-progress" id="popup-progress"></span>
+    <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Next →</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+</div>
+
+<div id="step-bar">
+  <button class="step-dot active" id="dot-0" onclick="goToStep(0)">1</button>
+  <button class="step-dot" id="dot-1" onclick="goToStep(1)">2</button>
+  <button class="step-dot" id="dot-2" onclick="goToStep(2)">3</button>
+  <button class="step-dot" id="dot-3" onclick="goToStep(3)">4</button>
+  <button class="step-dot" id="dot-4" onclick="goToStep(4)">5</button>
+  <button class="step-dot" id="dot-5" onclick="goToStep(5)">6</button>
+  <button class="step-dot" id="dot-6" onclick="goToStep(6)">7</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 1 — GUIDED TOUR SEARCH
+════════════════════════════════════════ -->
+<section id="screen-0" class="active">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-links">
+      <a class="ta-nav-link">✏ Create Your Proposal</a>
+      <a class="ta-nav-link">👥 Guided Tours</a>
+      <a class="ta-nav-link">📋 My Leads ▾</a>
+      <a class="ta-nav-link">⚙ Settings</a>
+      <a class="ta-nav-link">📄 Account Statement</a>
+    </div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+
+  <div class="search-bar" id="search-bar">
+    <div class="search-field">
+      <div class="search-label">Leaving From *</div>
+      <input class="search-input" value="San Francisco" readonly>
+    </div>
+    <div class="search-field">
+      <div class="search-label">Destination</div>
+      <input class="search-input" placeholder="Destination name">
+    </div>
+    <div class="search-field">
+      <div class="search-label">Duration</div>
+      <select class="search-select"><option>Any Duration</option><option>11–14 nights</option></select>
+    </div>
+    <div class="search-field">
+      <div class="search-label">Departure Month</div>
+      <select class="search-select"><option>Any</option><option>June 2026</option></select>
+    </div>
+    <button class="btn-search">Search</button>
+  </div>
+
+  <div class="search-body">
+    <div class="filter-sidebar" id="filter-sidebar">
+      <div class="filter-title">Filter By</div>
+      <div class="filter-section">
+        <div class="filter-section-header">Month <span>▲</span></div>
+        <div class="filter-month-grid">
+          <button class="filter-month-btn">June 2026</button>
+          <button class="filter-month-btn">August 2026</button>
+          <button class="filter-month-btn">September 2026</button>
+          <button class="filter-month-btn">October 2026</button>
+          <button class="filter-month-btn">November 2026</button>
+          <button class="filter-month-btn">December 2026</button>
+          <button class="filter-month-btn">January 2027</button>
+          <button class="filter-month-btn">February 2027</button>
+          <button class="filter-month-btn">March 2027</button>
+          <button class="filter-month-btn">April 2027</button>
+        </div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-header">Trip Type <span>▲</span></div>
+        <label class="filter-check"><input type="checkbox"> Fixed Departure</label>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-header">Duration <span>▲</span></div>
+        <label class="filter-check"><input type="checkbox"> 11 – 14 nights</label>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-header">Price Per Person <span>▲</span></div>
+        <label class="filter-radio"><input type="radio" name="price"> More than $2,200</label>
+      </div>
+    </div>
+
+    <div class="results-panel">
+      <div class="results-header">
+        <div class="results-count">Showing <strong>"1"</strong> results</div>
+        <select class="sort-select"><option>SORT: RECOMMENDED</option></select>
+      </div>
+
+      <div class="tour-card" id="tour-card">
+        <div class="tour-card-img">
+          <div class="tour-card-img-overlay"></div>
+          <div class="tour-nights-badge"><div class="tour-nights-dot"></div> 12 nights</div>
+        </div>
+        <div class="tour-card-info">
+          <div class="tour-card-top">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+              <div class="tour-credits-badge">🪙 Earn upto $521 ⓘ</div>
+              <div class="tour-type-badge">Group Tour</div>
+            </div>
+            <div class="tour-name">Australian Highlights</div>
+            <div class="tour-route">Melbourne 3 nights · Uluru National Park (Ayers Rock) 2 nights · Cairns 3 nights · Sydney 4 nights</div>
+            <div class="tour-description">Crowne Plaza Melbourne, an IHG Hotel with Room Only Specialist team of two highly experienced Travel Director and Driver Guide Local Specialists (Guides) Centrally located premium hotels Mercure Alice Springs Resort...</div>
+            <div class="tour-show-more">Show more</div>
+          </div>
+          <div class="tour-card-bottom">
+            <div>
+              <div class="tour-price-label">12 nights from</div>
+              <div class="tour-price">$9,536 <span style="font-size:14px;font-weight:400;color:var(--gray-400);">per person</span></div>
+              <div style="margin-top:6px;"><span class="tour-not-incl">✕ Flight not included</span></div>
+            </div>
+            <button class="btn-view-details" onclick="goToStep(1)">View Details</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SCREEN 2 — TOUR DETAIL + BOOKING SIDEBAR
+════════════════════════════════════════ -->
+<section id="screen-1">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+  <div style="background:var(--off-white);padding:24px;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;">
+        <div>
+          <div class="tour-stat-row">
+            <div class="tour-stat"><div class="tour-stat-label">Nights</div><div class="tour-stat-value">12</div></div>
+            <div class="tour-stat"><div class="tour-stat-label">Cities</div><div class="tour-stat-value">4</div></div>
+            <div class="tour-stat"><div class="tour-stat-label">Hotels</div><div class="tour-stat-value">4</div></div>
+            <div class="tour-stat"><div class="tour-stat-label">Departures</div><div class="tour-stat-value">18+</div></div>
+          </div>
+
+          <div class="tour-section" id="highlights-section">
+            <h2>Package Highlights</h2>
+            <ul class="highlights-list">
+              <li>Melbourne Laneways Walking Tour</li>
+              <li>Uluru Sunset Experience with Sparkling wine</li>
+              <li>Uluru Exclusive Field of Light Sunrise</li>
+              <li>Uluru Sunrise and guided Uluru walk</li>
+              <li>Kata Tjuta guided walk</li>
+              <li>Aboriginal Dot Art Painting Experience</li>
+              <li>Alice Springs Town Tour</li>
+              <li>Alice Springs Telegraph Station</li>
+              <li>School of the Air</li>
+              <li>Earth Sanctuary Dinner under the stars (BMG)</li>
+              <li>Great Barrier Reef Cruise</li>
+              <li>Sydney Harbour Cruise Sydney</li>
+              <li>Opera House Locally Guided Tour</li>
+            </ul>
+          </div>
+
+          <div class="tour-section" id="itinerary-section">
+            <h2>Itinerary · Day by Day</h2>
+            <div class="day-accordion">
+              <div class="day-accordion-header">
+                <div style="display:flex;align-items:center;">
+                  <span class="day-accordion-badge">DAY 1</span>
+                  <span class="day-accordion-title">Welcome to Melbourne</span>
+                </div>
+                <span>∨</span>
+              </div>
+              <div class="day-accordion-body">
+                <div class="day-service"><div class="day-service-dot"></div> Australian Highlights</div>
+                <div class="day-service"><div class="day-service-dot"></div> Crowne Plaza Melbourne, an IHG Hotel</div>
+                <div class="day-service"><div class="day-service-dot"></div> Welcome to Melbourne</div>
+              </div>
+            </div>
+            <div class="day-accordion">
+              <div class="day-accordion-header">
+                <div style="display:flex;align-items:center;">
+                  <span class="day-accordion-badge">DAY 2</span>
+                  <span class="day-accordion-title">Melbourne Laneways & City Discovery</span>
+                </div>
+                <span>›</span>
+              </div>
+            </div>
+            <div class="day-accordion">
+              <div class="day-accordion-header">
+                <div style="display:flex;align-items:center;">
+                  <span class="day-accordion-badge">DAY 3</span>
+                  <span class="day-accordion-title">Melbourne to Uluru</span>
+                </div>
+                <span>›</span>
+              </div>
+            </div>
+            <div class="day-accordion">
+              <div class="day-accordion-header">
+                <div style="display:flex;align-items:center;">
+                  <span class="day-accordion-badge">DAY 4-5</span>
+                  <span class="day-accordion-title">Uluru – Field of Light, Sunrise & Kata Tjuta</span>
+                </div>
+                <span>›</span>
+              </div>
+            </div>
+            <div class="day-accordion">
+              <div class="day-accordion-header">
+                <div style="display:flex;align-items:center;">
+                  <span class="day-accordion-badge">DAY 6-8</span>
+                  <span class="day-accordion-title">Alice Springs – Cairns</span>
+                </div>
+                <span>›</span>
+              </div>
+            </div>
+            <div class="day-accordion">
+              <div class="day-accordion-header">
+                <div style="display:flex;align-items:center;">
+                  <span class="day-accordion-badge">DAY 9-12</span>
+                  <span class="day-accordion-title">Sydney – Harbour Cruise & Opera House</span>
+                </div>
+                <span>›</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Booking sidebar -->
+        <div class="booking-sidebar">
+          <div class="booking-card" id="booking-sidebar-card">
+            <div class="booking-card-price">
+              <div class="booking-price-label">Starting From</div>
+              <div class="booking-price">$9,536 <span style="font-size:16px;font-weight:400;color:var(--gray-400);">per person – june</span></div>
+              <div class="booking-price-sub"><span class="not-incl-tag">✕ Flight Not Included</span></div>
+            </div>
+            <div class="booking-card-form">
+              <div class="booking-form-label">Leaving from *</div>
+              <input class="booking-form-input" value="San Francisco">
+
+              <div class="booking-form-label">Select departure month:</div>
+              <div class="booking-month-grid">
+                <span class="month-tag">All</span>
+                <span class="month-tag active">Jun 2026</span>
+                <span class="month-tag">Aug 2026</span>
+                <span class="month-tag">Sep 2026</span>
+                <span class="month-tag">Oct 2026</span>
+                <span class="month-tag">Nov 2026</span>
+                <span class="month-tag">Dec 2026</span>
+                <span class="month-tag">Jan 2027</span>
+                <span class="month-tag">Feb 2027</span>
+                <span class="month-tag">Mar 2027</span>
+              </div>
+
+              <div class="departure-option selected" id="departure-june">
+                <div class="departure-left">
+                  <div class="departure-radio"><div class="departure-radio-dot"></div></div>
+                  <div>
+                    <div class="departure-date">Sun, 21 Jun 2026</div>
+                    <div class="departure-seats">Last Few Seats</div>
+                  </div>
+                </div>
+                <div class="departure-price">
+                  <div class="departure-price-amount">$9,536</div>
+                  <div class="departure-price-label">Price per person</div>
+                </div>
+              </div>
+
+              <div class="booking-rooms-row">
+                <div class="booking-form-label">Number of Rooms *</div>
+                <select class="booking-form-input" style="appearance:none;cursor:pointer;">
+                  <option>1 room, 2 adults</option>
+                  <option>2 rooms, 4 adults</option>
+                </select>
+              </div>
+
+              <div class="credits-badge-lg">🪙 Earn upto $521 ⓘ</div>
+              <button class="btn-check-avail" onclick="goToStep(2)">
+                Check Availability <span>›</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SCREEN 3 — PRICE CONFIRMED / TRAVEL DETAILS
+════════════════════════════════════════ -->
+<section id="screen-2">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+  <div style="padding:28px;background:var(--off-white);">
+    <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;">
+      <div>
+        <div class="tour-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div class="tour-stat-row" style="margin-bottom:0;grid-template-columns:repeat(2,1fr);gap:12px;">
+              <div class="tour-stat"><div class="tour-stat-label">Hotels</div><div class="tour-stat-value">4</div></div>
+            </div>
+          </div>
+          <h2>Package Highlights</h2>
+          <ul class="highlights-list">
+            <li>Melbourne Laneways Walking Tour</li>
+            <li>Uluru Sunset Experience with Sparkling wine</li>
+            <li>Uluru Exclusive Field of Light Sunrise</li>
+            <li>Uluru Sunrise and guided Uluru walk</li>
+            <li>Kata Tjuta guided walk</li>
+            <li>Aboriginal Dot Art Painting Experience</li>
+            <li>Alice Springs Town Tour</li>
+            <li>Great Barrier Reef Cruise</li>
+            <li>Sydney Harbour Cruise Sydney</li>
+            <li>Opera House Locally Guided Tour</li>
+          </ul>
+        </div>
+        <div class="tour-section">
+          <h2>Itinerary · Day by Day</h2>
+          <div class="day-accordion">
+            <div class="day-accordion-header">
+              <div style="display:flex;align-items:center;">
+                <span class="day-accordion-badge">DAY 1</span>
+                <span class="day-accordion-title">Sun, 21 Jun – Welcome to Melbourne</span>
+              </div>
+              <span>∨</span>
+            </div>
+            <div class="day-accordion-body">
+              <div class="day-service"><div class="day-service-dot"></div> San Francisco → Melbourne (flight not incl.)</div>
+              <div class="day-service"><div class="day-service-dot"></div> Crowne Plaza Melbourne, an IHG Hotel</div>
+              <div class="day-service"><div class="day-service-dot"></div> Welcome dinner with tour group</div>
+            </div>
+          </div>
+          <div class="day-accordion">
+            <div class="day-accordion-header">
+              <div style="display:flex;align-items:center;"><span class="day-accordion-badge">DAY 2-3</span><span class="day-accordion-title">Melbourne City & Laneways</span></div>
+              <span>›</span>
+            </div>
+          </div>
+          <div class="day-accordion">
+            <div class="day-accordion-header">
+              <div style="display:flex;align-items:center;"><span class="day-accordion-badge">DAY 4-5</span><span class="day-accordion-title">Uluru – Sunrise, Field of Light</span></div>
+              <span>›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right sidebar -->
+      <div class="booking-sidebar">
+        <div class="price-confirmed-card" id="price-confirmed-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+              <div class="price-confirmed-title">Travel Details</div>
+              <div style="font-size:13px;color:var(--gray-600);">1 Room, 2 adults on 21 Jun 2026</div>
+            </div>
+            <button style="background:var(--gray-100);border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">✏ Edit</button>
+          </div>
+          <div style="font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px;">Price Summary</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div style="font-size:14px;font-weight:600;">Total Price</div>
+            <div style="text-align:right;">
+              <div style="font-size:26px;font-weight:700;">$19,073</div>
+              <div style="font-size:12px;color:var(--gray-400);">Incl all taxes</div>
+            </div>
+          </div>
+          <div class="credits-pill">🪙 Earn Travel Credits +$953 ⓘ</div>
+          <div class="divider"></div>
+          <div class="price-row"><span>Total Land Price</span><span style="font-weight:600;">$19,073</span></div>
+          <div class="divider"></div>
+          <button class="btn-book-now" onclick="goToStep(3)">Book Now</button>
+          <button class="btn-save-proposal">Save as Proposal</button>
+          <div style="font-size:12px;text-align:center;color:var(--blue);margin-top:10px;cursor:pointer;">Show traveler pricing breakdown</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SCREEN 4 — IMPORTANT INFO MODAL (guidelines)
+════════════════════════════════════════ -->
+<section id="screen-3">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+  <!-- Background content (blurred) -->
+  <div style="padding:28px;background:var(--off-white);filter:blur(1px);">
+    <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 340px;gap:24px;">
+      <div class="tour-section" style="opacity:.4;">
+        <h2>Package Highlights</h2>
+        <ul class="highlights-list">
+          <li>Melbourne Laneways Walking Tour</li>
+          <li>Uluru Sunset Experience with Sparkling wine</li>
+          <li>Uluru Exclusive Field of Light Sunrise</li>
+        </ul>
+      </div>
+      <div class="price-confirmed-card" style="opacity:.4;">
+        <div style="font-size:26px;font-weight:700;">$19,073</div>
+        <button class="btn-book-now" style="margin-top:12px;">Book Now</button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal -->
+  <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:center;justify-content:center;">
+    <div class="modal" id="guidelines-modal">
+      <div class="modal-title">Important Information & Guidelines</div>
+      <button style="position:absolute;top:16px;right:16px;background:var(--gray-100);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;">✕</button>
+      <div class="modal-country-tab">Australia</div>
+      <div class="modal-section-title">General</div>
+      <ol class="modal-list">
+        <li>A valid US passport with a minimum of six months beyond your date of return travel is required AND an ETA (Electronic Travel Authority) is required to enter Australia. An ETA does not guarantee your entry into Australia, and it is the traveler's responsibility to divulge any information pertaining to, but not limited to, a criminal record, health records and all other reasons that may impede your entry into Australia. Down Under Answers accepts no responsibility for inaccurate or false information.</li>
+        <li>TO APPLY FOR AN ETA:</li>
+        <li>Download the Australian ETA app for free from the App Store (Apple) or Google Play store (Android). For more information see Apply Using the Australian ETA app.</li>
+        <li>In most cases, you will be notified of the result of your application immediately. Sometimes there will be a delay (of up to 12 hours).</li>
+        <li>Passengers traveling to Australia and transiting in New Zealand will require an NZ eTA in addition to an Australian ETA.</li>
+      </ol>
+      <button class="btn-processing" onclick="goToStep(4)">
+        <div class="spinner"></div> Processing...
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SCREEN 5 — TRAVELER DETAILS
+════════════════════════════════════════ -->
+<section id="screen-4">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-links">
+      <a class="ta-nav-link">✏ Create Your Proposal</a>
+      <a class="ta-nav-link">👥 Guided Tours</a>
+      <a class="ta-nav-link">📋 My Leads ▾</a>
+      <a class="ta-nav-link">⚙ Settings</a>
+      <a class="ta-nav-link">📄 Account Statement</a>
+    </div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+  <div class="booking-flow-body">
+    <div>
+      <div class="form-section" id="traveler-section">
+        <h3>Traveler Details</h3>
+        <p>Please enter names as per valid id proof and contact information for guests traveling on this trip:</p>
+
+        <div class="room-header">Room 1 &nbsp;·&nbsp; Traveler 1: Adult <button class="btn-pick-traveler">Pick Traveler</button></div>
+        <div class="form-grid-3">
+          <div><label class="form-label">Title *</label><select class="form-select"><option>Mr</option><option>Mrs</option><option>Miss</option><option>Ms</option></select></div>
+          <div><label class="form-label">First Name *</label><input class="form-input" value="Kirk"></div>
+          <div><label class="form-label">Last Name *</label><input class="form-input" value="Demeter"></div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label class="form-label">Bed Preference ❓</label>
+          <select class="bed-pref"><option>Double Bed</option><option>Twin Beds</option></select>
+        </div>
+        <div class="form-grid-2">
+          <div><label class="form-label">Passport Number</label><input class="form-input" placeholder=""><div class="upload-link"> Upload Passport</div><div class="upload-link"> Upload Passport – Back Page</div></div>
+          <div><label class="form-label">Nationality</label><select class="form-select" style="width:100%;"><option>United States of America</option></select></div>
+        </div>
+
+        <div class="room-header" style="margin-top:16px;">Room 1 &nbsp;·&nbsp; Traveler 2: Adult <button class="btn-pick-traveler">Pick Traveler</button></div>
+        <div class="form-grid-3">
+          <div><label class="form-label">Title *</label><select class="form-select"><option>Miss</option><option>Mr</option><option>Mrs</option></select></div>
+          <div><label class="form-label">First Name *</label><input class="form-input" value="Kerryn"></div>
+          <div><label class="form-label">Last Name *</label><input class="form-input" value="Collins"></div>
+        </div>
+        <div class="form-grid-2" style="margin-top:10px;">
+          <div><label class="form-label">Passport Number</label><input class="form-input" placeholder=""><div class="upload-link"> Upload Passport</div><div class="upload-link"> Upload Passport – Back Page</div></div>
+          <div><label class="form-label">Nationality</label><select class="form-select" style="width:100%;"><option>United States of America</option></select></div>
+        </div>
+
+        <div class="verify-checks" style="margin-top:16px;">
+          <label class="verify-check"><input type="checkbox"> I have verified that names being entered are as per passport</label>
+          <div style="font-size:12px;color:var(--gray-400);padding-left:22px;">I have verified that all passports are valid for 6 months from the date of travel</div>
+          <div style="font-size:12px;color:var(--gray-400);padding-left:22px;">I confirm that the above details are correct and I am ready to bear any additional costs arising out of discrepancy in the above details</div>
+        </div>
+      </div>
+
+      <div class="occasion-section" id="occasion-section">
+        <div class="occasion-title">Are any of the travelers celebrating any special occasion?</div>
+        <div class="occasion-subtitle">We will try to make sure we can organize something memorable for their special occasion while they are on their trip.</div>
+        <div class="occasion-options">
+          <label class="occasion-radio"><input type="radio" name="occasion" checked> None</label>
+          <label class="occasion-radio"><input type="radio" name="occasion"> Birthday</label>
+          <label class="occasion-radio"><input type="radio" name="occasion"> Honeymoon</label>
+          <label class="occasion-radio"><input type="radio" name="occasion"> Anniversary</label>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Contact Information</h3>
+        <div class="form-grid-2">
+          <div><label class="form-label">Email Address *</label><input class="form-input" value="advisortest@travelanswersgroup.com"></div>
+          <div><label class="form-label">Contact Phone *</label><input class="form-input" placeholder="+1 ..."></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Price sidebar -->
+    <div class="price-summary-sidebar">
+      <div class="price-summary-card" id="price-summary-card">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <div class="price-gross-label">Price per adult</div><div style="font-weight:600;">$9,536</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <div class="price-gross-label">Commission/Markup</div><div style="font-weight:600;">$1,907</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;padding-top:8px;border-top:1px solid var(--gray-200);">
+          <div class="price-gross-label" style="font-weight:700;">Total Price – Net</div><div style="font-weight:700;">$17,165.00</div>
+        </div>
+        <div style="background:var(--gray-100);border-radius:10px;padding:14px;margin-bottom:12px;">
+          <div class="price-gross-label" style="font-weight:700;font-size:14px;">Total Price – Gross</div>
+          <div class="price-gross">$19,072.00</div>
+          <div class="price-gross-sub">(Incl all taxes)</div>
+          <div class="credits-pill" style="margin-top:10px;">🪙 Earn Travel Credits +$953</div>
+        </div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px;">Australian Highlights</div>
+        <div style="font-size:13px;color:var(--gray-600);margin-bottom:4px;">📅 21 Jun 2026</div>
+        <div style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">👥 1 room, 2 adults</div>
+      </div>
+
+      <div class="hotel-preview-card">
+        <div class="hotel-preview-header">
+          <div class="hotel-preview-name">Mercure Alice Springs Resort</div>
+          <div class="hotel-preview-stars">★★★★</div>
+          <div class="hotel-preview-addr">34 Stott Terrace</div>
+        </div>
+        <div class="hotel-preview-img alice"></div>
+        <div class="hotel-preview-checkin">
+          <div><div class="checkin-label">Check-in</div><div class="checkin-value">24 Jun 2026<br><span style="font-size:11px;color:var(--gray-400);">03:00 PM</span></div></div>
+          <div class="nights-pill">2 nights</div>
+          <div><div class="checkin-label">Check-out</div><div class="checkin-value">26 Jun 2026<br><span style="font-size:11px;color:var(--gray-400);">10:00 AM</span></div></div>
+        </div>
+      </div>
+
+      <div class="hotel-preview-card" style="margin-top:10px;">
+        <div class="hotel-preview-header">
+          <div class="hotel-preview-name">Hilton Cairns</div>
+          <div class="hotel-preview-stars">★★★★★</div>
+          <div class="hotel-preview-addr">34 Esplanade</div>
+        </div>
+        <div class="hotel-preview-img cairns"></div>
+      </div>
+      <a class="show-more-link">Show More</a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SCREEN 6 — PAYMENT OPTIONS
+════════════════════════════════════════ -->
+<section id="screen-5">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+  <div class="payment-body">
+    <div>
+      <div class="important-info" id="payment-info-card">
+        <h3>Crowne Plaza Melbourne, an IHG Hotel</h3>
+        <div style="font-weight:600;font-size:12px;color:var(--gray-400);margin-bottom:8px;">Policies:</div>
+        <ul class="policy-list">
+          <li>The property has connecting/adjoining rooms, which are subject to availability and can be requested by contacting the property using the number on the booking confirmation.</li>
+          <li>This property advises that enhanced cleaning and guest safety measures are currently in place.</li>
+          <li>Disinfectant is used to clean the property; commonly-touched surfaces are cleaned with disinfectant between stays; bed sheets and towels are laundered at a temperature of at least 60°C/140°F; the property is cleaned and disinfected with electrostatic spray.</li>
+          <li>Social distancing measures are in place; staff at the property wear personal protective equipment.</li>
+        </ul>
+      </div>
+
+      <div class="important-info" id="pay-options-card">
+        <h3>How much do you want to pay now?</h3>
+        <div class="pay-options-grid" style="margin-top:14px;">
+          <div class="pay-option">
+            <div class="pay-option-radio"><div class="pay-option-dot"></div></div>
+            <div>
+              <div class="pay-option-label">Pay Net – $17,165</div>
+              <div class="pay-option-sub">No commission / markup</div>
+            </div>
+          </div>
+          <div class="pay-option selected">
+            <div class="pay-option-radio"><div class="pay-option-dot"></div></div>
+            <div>
+              <div class="pay-option-label">Pay Gross – $19,073</div>
+              <div class="pay-option-sub">Commission/Markup Included – $1,907</div>
+              <div class="pay-option-sub" style="margin-top:4px;">Commission / markup will be credited to your wallet after complete payment.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="payment-total-row"><span>TOTAL PRICE</span><span>$19,072.00</span></div>
+        <div class="payment-amount-row"><span>AMOUNT TO PAY NOW</span><span>$19,072.00</span></div>
+
+        <div class="divider"></div>
+        <label class="checkbox-row"><input type="checkbox" checked class="checkbox-row"> I understand and accept that package rates can only be booked in combination with a flight, car, train or cruise booking for the same traveller and trip</label>
+        <div style="font-size:13px;color:var(--gray-600);margin-bottom:20px;">By proceeding to make payment, you agree to the <span style="color:var(--blue);cursor:pointer;">terms and conditions</span></div>
+
+        <div class="action-btns">
+          <button class="btn-hold">Hold Booking Until 09 May 2026</button>
+          <button class="btn-pay-now">Proceed to payment</button>
+        </div>
+      </div>
+
+      <div class="important-info">
+        <h3>Guaranteed security and worry-free travel</h3>
+        <p style="font-size:13px;color:var(--gray-600);line-height:1.6;margin-bottom:14px;">Your transaction is backed by major commercial banks and your personal information is protected and kept private. We guarantee conformity to international credit card payment standards.</p>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div style="background:#fff;border-radius:6px;padding:6px 14px;font-weight:800;color:#003087;box-shadow:var(--shadow);">PayPal</div>
+          <div style="background:#fff;border-radius:6px;padding:6px 14px;font-weight:800;color:#1a1f71;box-shadow:var(--shadow);">VISA</div>
+          <div style="background:#fff;border-radius:6px;padding:6px 14px;font-weight:800;color:#eb001b;box-shadow:var(--shadow);">MC</div>
+          <div style="background:#fff;border-radius:6px;padding:6px 14px;font-weight:800;color:#2e77bc;box-shadow:var(--shadow);">AMEX</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="price-summary-card">
+        <div class="price-gross-label" style="font-weight:700;">Crown Towers Melbourne ★★★★★</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-bottom:12px;">8 Whiteman Street, 8</div>
+        <div style="width:100%;height:140px;background:linear-gradient(135deg,#1a5c5a,#0f3c3a);border-radius:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.2);font-size:36px;">🏨</div>
+        <div class="price-row"><div>Check-in</div><div style="font-weight:600;">04 Jun 2026 · 3:00 PM</div></div>
+        <div class="price-row"><div>Duration</div><div style="font-weight:600;">3 nights</div></div>
+        <div class="price-row"><div>Check-out</div><div style="font-weight:600;">07 Jun 2026 · 10:00 AM</div></div>
+        <div class="price-row"><div>Guests</div><div style="font-weight:600;">1 room, 2 adults</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════
+     SCREEN 7 — BOOKING CONFIRMED
+════════════════════════════════════════ -->
+<section id="screen-6">
+  <nav class="ta-nav">
+    <div class="ta-logo">travel answers<sub>making travel easy</sub></div>
+    <div class="ta-nav-right">
+      <div class="ta-nav-credit">Travel Credits ($1,000)</div>
+      <div class="ta-avatar">T</div>
+    </div>
+  </nav>
+  <div class="confirm-body">
+    <div class="booking-ref">
+      <div class="booking-ref-grid">
+        <div><div class="booking-ref-label">Guest Name</div><div class="booking-ref-value">Kirk Demeter</div></div>
+        <div><div class="booking-ref-label">Contact Email</div><div class="booking-ref-value">advisortest@travelanswersgroup.com</div></div>
+        <div><div class="booking-ref-label">Contact Phone</div><div class="booking-ref-value">+17878787878</div></div>
+        <div><div class="booking-ref-label">Guest Local Contact</div><div class="booking-ref-value"><a class="show-more-link" style="padding:0;font-size:13px;">update</a></div></div>
+        <div><div class="booking-ref-label">Travel Date</div><div class="booking-ref-value">21 Jun 2026</div></div>
+        <div><div class="booking-ref-label">Total Guests</div><div class="booking-ref-value">1 room, 2 adults</div></div>
+        <div><div class="booking-ref-label">Agent Reference</div><div class="booking-ref-value"><a class="show-more-link" style="padding:0;font-size:13px;">update</a></div></div>
+      </div>
+      <div style="font-size:12px;color:var(--gray-400);">Submission time: 08 May 26, 02:45 AM</div>
+    </div>
+
+    <div class="payment-confirmed-card" id="payment-confirmed-card">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:12px;color:var(--gray-400);margin-bottom:4px;">TOTAL PRICE</div>
+          <div class="payment-total-display">$19,073</div>
+          <div class="add-markup">+ Add Markup</div>
+        </div>
+        <div>
+          <div class="commission-grid" style="grid-template-columns:1fr;gap:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--gray-100);">
+              <span style="color:var(--gray-600);">Commission ⓘ</span>
+              <span style="font-weight:700;">$1,907.28</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:14px;padding:6px 0;">
+              <span style="color:var(--gray-600);">Travel Credits</span>
+              <span style="font-weight:700;">$953.64</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="credits-earned-box">
+        <div>
+          <div style="font-size:14px;font-weight:600;">Credits You'll Earn</div>
+          <div style="font-size:12px;color:var(--gray-400);">after trip completion</div>
+        </div>
+        <div class="credits-earned-amount">+ $953</div>
+      </div>
+
+      <div class="booking-status-row">
+        <div style="font-size:12px;color:var(--gray-400);">08 May, 2026 at 02:45 AM</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="status-new">New</span>
+          <span style="color:var(--blue);font-size:12px;cursor:pointer;">Refresh Status</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-pay-green">Pay now $19,073</button>
+          <button class="btn-copy-link">Copy Link to Share with Customer</button>
+        </div>
+      </div>
+      <div class="outstanding-row">Trip Outstanding Amount: <strong>$19,073</strong></div>
+    </div>
+
+    <div class="hotel-confirm-card" id="hotel-confirm-card">
+      <div class="hotel-confirm-header">
+        <div class="city-badge">9 · Melbourne</div>
+        <div style="font-size:14px;font-weight:700;margin-left:8px;">3 nights</div>
+      </div>
+      <div class="hotel-confirm-img melbourne"></div>
+      <div class="hotel-confirm-details">
+        <div style="font-size:15px;font-weight:700;">Crowne Plaza Melbourne, an IHG Hotel ★★★★</div>
+        <div style="font-size:12px;color:var(--gray-400);">1-5 Spencer Street</div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;margin-top:14px;background:var(--gray-100);border-radius:8px;padding:12px;">
+          <div><div class="checkin-label">Check-in</div><div class="checkin-value" style="font-size:13px;">21 Jun 2026<br><span style="font-size:11px;color:var(--gray-400);">03:00 PM</span></div></div>
+          <div class="nights-pill">3 nights</div>
+          <div><div class="checkin-label">Check-out</div><div class="checkin-value" style="font-size:13px;">24 Jun 2026<br><span style="font-size:11px;color:var(--gray-400);">10:00 AM</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+const STEPS = [
+  {
+    screen: 0,
+    title: "Guided Tours Search",
+    badge: "Step 1 of 7 · Tour Discovery",
+    body: `Welcome to the <strong>Guided Tours</strong> section — a dedicated module for pre-packaged escorted group tours. Unlike custom proposals, these are <strong>fixed-departure group products</strong>.<br><br>Advisors search by departure city, destination, duration, and month. The system returned the <strong>Australian Highlights</strong> tour — a 12-night premium group journey covering Melbourne, Uluru, Cairns, and Sydney.`,
+    tip: `The "Earn upto $521" credit badge is shown upfront on search results — a strong incentive for advisors to recommend this product to clients.`,
+    highlight: "tour-card",
+    position: { top: "160px", right: "40px" }
+  },
+  {
+    screen: 1,
+    title: "Tour Detail Page",
+    badge: "Step 2 of 7 · Tour Details",
+    body: `Clicking <strong>View Details</strong> opens the full tour page with:<br><br>• <strong>Package stats:</strong> 12 nights, 4 cities, 4 hotels, 18+ departures<br>• <strong>Package Highlights:</strong> all included experiences (Uluru sunrise, Great Barrier Reef, Opera House tour, etc.)<br>• <strong>Itinerary Day by Day:</strong> collapsible accordion per day<br>• <strong>Booking sidebar:</strong> departure selection, room count, availability check`,
+    tip: `The "Last Few Seats" alert on the Jun 2026 departure creates urgency — ideal for demo conversations with clients who are on the fence.`,
+    highlight: "booking-sidebar-card",
+    position: { top: "160px", left: "40px" }
+  },
+  {
+    screen: 2,
+    title: "Availability Confirmed – Price Summary",
+    badge: "Step 3 of 7 · Price Locked",
+    body: `After checking availability, the sidebar updates to show confirmed <strong>Travel Details</strong>:<br><br>• <strong>Total Price: $19,073</strong> (incl. all taxes)<br>• <strong>Earn Travel Credits +$953</strong> — earned after trip completion<br>• Two clear CTAs: <strong>Book Now</strong> (direct booking) or <strong>Save as Proposal</strong> (send to client for approval)`,
+    tip: `"Save as Proposal" is key — it lets the advisor share this tour option alongside custom-built proposals so the client can compare all options in one place.`,
+    highlight: "price-confirmed-card",
+    position: { top: "160px", left: "40px" }
+  },
+  {
+    screen: 3,
+    title: "Important Information & Guidelines",
+    badge: "Step 4 of 7 · Travel Guidelines",
+    body: `Before booking, the platform automatically surfaces <strong>destination-specific travel requirements</strong>. For Australia:<br><br>• Valid US passport required (6 months validity beyond return)<br>• <strong>ETA (Electronic Travel Authority)</strong> required — apply via the Australian ETA app<br>• Instant approval in most cases (up to 12 hours delay possible)<br>• NZ transit passengers need an additional NZ eTA<br><br>The <strong>"Processing..."</strong> button confirms the advisor has read and acknowledged the requirements.`,
+    tip: `This automated compliance step removes advisor liability — the system ensures clients are informed of visa and entry requirements before money changes hands.`,
+    highlight: "guidelines-modal",
+    position: { top: "180px", left: "40px" }
+  },
+  {
+    screen: 4,
+    title: "Traveler Details",
+    badge: "Step 5 of 7 · Traveler Info",
+    body: `The booking form for Guided Tours has a key difference from custom proposals: a <strong>Bed Preference</strong> field (Double Bed / Twin Beds) specific to group tour room allocation.<br><br>Other fields mirror the custom flow:<br>• Name as per passport, passport upload<br>• Nationality dropdown<br>• <strong>Special Occasion</strong> selector — Birthday, Honeymoon, Anniversary, None<br>• The tour operator will arrange something memorable for the occasion`,
+    tip: `The "Special Occasion" field is unique to Guided Tours — it triggers a behind-the-scenes request to the tour operator for an in-trip surprise. Great talking point for romance and celebration travel.`,
+    highlight: "occasion-section",
+    position: { top: "160px", right: "360px" }
+  },
+  {
+    screen: 5,
+    title: "Payment Options",
+    badge: "Step 6 of 7 · Payment",
+    body: `The payment screen shows hotel property policies upfront (Crowne Plaza Melbourne), then gives the advisor two price choices:<br><br>• <strong>Pay Net ($17,165):</strong> no commission visible — cleaner for direct client billing<br>• <strong>Pay Gross ($19,073):</strong> commission ($1,907) credited back to advisor wallet post-payment<br><br>Two booking actions: <strong>Hold Booking</strong> (reserves until 09 May 2026) or <strong>Proceed to Payment</strong> immediately.`,
+    tip: `The Hold Booking option is especially powerful for Guided Tours with limited seats — it secures the client's spot while they finalise paperwork or funds.`,
+    highlight: "pay-options-card",
+    position: { top: "160px", left: "40px" }
+  },
+  {
+    screen: 6,
+    title: "Booking Confirmed – Payment Details",
+    badge: "Step 7 of 7 · Confirmation",
+    body: `The booking confirmation page shows everything the advisor needs post-booking:<br><br>• Guest details summary (Kirk Demeter, 21 Jun 2026, 1 room 2 adults)<br>• <strong>Total: $19,073</strong> with commission breakdown ($1,907) and travel credits to be earned (+$953 after trip completion)<br>• Status: <strong>New</strong> with "Pay Now" and <strong>"Copy Link to Share with Customer"</strong> buttons<br>• Hotel itinerary preview with check-in/out dates`,
+    tip: `The "Copy Link" button generates a secure payment URL the client can open themselves — the advisor never needs to handle card details directly.`,
+    highlight: "payment-confirmed-card",
+    position: { top: "160px", left: "40px" }
+  }
+];
+
+let currentStep = 0;
+
+function showStep(idx) {
+  currentStep = idx;
+  const step = STEPS[idx];
+
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + step.screen).classList.add('active');
+
+  document.getElementById('popup-badge').textContent = step.badge;
+  document.getElementById('popup-title').textContent = step.title;
+  document.getElementById('popup-body').innerHTML = step.body;
+  document.getElementById('popup-tip').innerHTML = step.tip;
+  document.getElementById('popup-progress').textContent = `${idx + 1} / ${STEPS.length}`;
+  document.getElementById('progress-fill').style.width = `${((idx + 1) / STEPS.length) * 100}%`;
+
+  const popup = document.getElementById('popup');
+  popup.style.top = step.position.top || 'auto';
+  popup.style.bottom = step.position.bottom || 'auto';
+  popup.style.left = step.position.left || 'auto';
+  popup.style.right = step.position.right || 'auto';
+  popup.classList.add('active');
+  document.getElementById('overlay').classList.add('active');
+
+  document.getElementById('btn-prev').style.display = idx === 0 ? 'none' : 'inline-flex';
+  document.getElementById('btn-next').textContent = idx === STEPS.length - 1 ? '🎉 Finish' : 'Next →';
+
+  document.querySelectorAll('.highlight-target').forEach(el => el.classList.remove('highlight-target'));
+  if (step.highlight) {
+    const el = document.getElementById(step.highlight);
+    if (el) {
+      el.classList.add('highlight-target');
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+    }
+  }
+
+  document.querySelectorAll('.step-dot').forEach((dot, i) => {
+    dot.classList.remove('active', 'done');
+    if (i === idx) dot.classList.add('active');
+    else if (i < idx) dot.classList.add('done');
+  });
+}
+
+function nextStep() {
+  if (currentStep < STEPS.length - 1) showStep(currentStep + 1);
+  else { closePopup(); alert('🎉 Guided Tours demo complete! All 7 steps covered.'); }
+}
+function prevStep() { if (currentStep > 0) showStep(currentStep - 1); }
+function goToStep(idx) { showStep(idx); }
+function closePopup() {
+  document.getElementById('popup').classList.remove('active');
+  document.getElementById('overlay').classList.remove('active');
+  document.querySelectorAll('.highlight-target').forEach(el => el.classList.remove('highlight-target'));
+}
+
+document.getElementById('overlay').addEventListener('click', closePopup);
+window.addEventListener('load', () => showStep(0));
+</script>
+</body>
+</html>
